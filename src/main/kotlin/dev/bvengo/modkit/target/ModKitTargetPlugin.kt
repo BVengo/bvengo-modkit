@@ -51,7 +51,9 @@ class ModKitTargetPlugin : Plugin<Project> {
             else -> error("Unsupported loader ${target.loader}")
         }
         adapter.configure(project, manifest, target, pins)
+        TargetDependencies.configure(project, manifest, target, extension)
         TargetResources.configure(project, extension, target.loader)
+        TargetArtifacts.configure(project)
 
         project.tasks.withType(JavaCompile::class.java).configureEach {
             options.release.set(pins.java)

@@ -107,7 +107,7 @@ internal class BootstrapFunctionalTest {
         Files.writeString(directory.resolve("build.gradle.kts"), """
             plugins { id("dev.bvengo.modkit.target") }
             modkit {
-                archiveName.set("custom-fixture")
+                archiveName.set("custom-fixture-" + project.name.substringAfterLast('-'))
                 licenceFile.set(rootProject.layout.projectDirectory.file("LICENSE.md"))
                 if (project.name.endsWith("-fabric")) {
                     licenceEntry.set("LICENSE_fixture")
@@ -163,7 +163,7 @@ internal class BootstrapFunctionalTest {
             val excluded = if (loader == "fabric") "META-INF/neoforge.mods.toml" else "fabric.mod.json"
             val licenceEntry = if (loader == "fabric") "LICENSE_fixture" else "LICENSE.md_fixture-neoforge"
 
-            ZipFile(libs.resolve("custom-fixture-1.0.0-mc26.3.jar").toFile()).use { archive ->
+            ZipFile(libs.resolve("custom-fixture-$loader-1.0.0-mc26.3.jar").toFile()).use { archive ->
                 val metadata = archive.getInputStream(archive.getEntry(descriptor)).bufferedReader().use { it.readText() }
                 assertTrue(metadata.contains("1.0.0-mc26.3"), metadata)
                 assertTrue(metadata.contains(marker), metadata)
@@ -178,7 +178,7 @@ internal class BootstrapFunctionalTest {
                 }
             }
 
-            val sources = libs.resolve("custom-fixture-1.0.0-mc26.3-sources.jar")
+            val sources = libs.resolve("custom-fixture-$loader-1.0.0-mc26.3-sources.jar")
             assertEntries(sources, listOf("fabric.mod.json", "META-INF/neoforge.mods.toml", licenceEntry))
             ZipFile(sources.toFile()).use { archive ->
                 assertTrue(archive.readEntry(descriptor).contains("${'$'}{version}"))

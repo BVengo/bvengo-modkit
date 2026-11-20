@@ -4,7 +4,7 @@ import dev.bvengo.modkit.model.Target
 import org.tomlj.Toml
 
 /** Exact bootstrap pins shipped inside the implementation artifact. */
-data class TargetPins(val java: Int, val loaderVersion: String)
+data class TargetPins(val java: Int, val loaderVersion: String, val dependencies: Map<String, String>)
 
 /** Reads only explicitly available targets, without guessing compatible versions. */
 object TargetRegistry {
@@ -22,6 +22,13 @@ object TargetRegistry {
             "unsupported loader ${target.loader} for Minecraft ${target.minecraft}"
         }
 
-        return TargetPins(Math.toIntExact(requireNotNull(registry.getLong("minecraft.java"))), loader)
+        val dependencies = listOf("common.dependencies", "${target.loader}.dependencies")
+            .mapNotNull(registry::getTable)
+            .flatMap { table -> table.keySet().map { key -> key to requireNotNull(table.getString(listOf(key))) } }
+            .toMap()
+
+        requirePinnedVersion(loader, "$resource ${target.loader}.loader")
+
+        return TargetPins(Math.toIntExact(requireNotNull(registry.getLong("minecraft.java"))), loader, dependencies)
     }
 }

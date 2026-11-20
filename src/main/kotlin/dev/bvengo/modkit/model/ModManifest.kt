@@ -7,6 +7,15 @@ data class ModManifest(
     val version: String,
     val targets: List<Target>,
     val vcs: String,
+    val dependencies: Map<String, Boolean> = emptyMap(),
+    val dependencyOverrides: DependencyOverrides = DependencyOverrides(),
+)
+
+/** Version overrides never enable a dependency or change its platform applicability. */
+data class DependencyOverrides(
+    val global: Map<String, String> = emptyMap(),
+    val minecraft: Map<String, Map<String, String>> = emptyMap(),
+    val targets: Map<String, Map<String, String>> = emptyMap(),
 )
 
 /** An explicit target, independent of punctuation in Minecraft version identifiers. */

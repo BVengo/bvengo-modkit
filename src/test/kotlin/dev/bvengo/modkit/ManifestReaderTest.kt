@@ -36,10 +36,10 @@ internal class ManifestReaderTest {
             manifest.replace("version = \"1.0.0\"", "version = 7"),
             manifest.replace("[\"26.3\"]", "[26.3]"),
             manifest.replace("[\"26.3\"]", "[\"26.3\", \"26.3\"]"),
-            manifest.replace("[\"26.3\"]", "[\"26.2\"]"),
+            manifest.replace("[\"26.3\"]", "[\"25.9\"]"),
             manifest.replace("[\"fabric\", \"neoforge\"]", "[\"forge\"]"),
             manifest.replace("vcs = \"26.3-fabric\"", "vcs = \"missing\""),
-            manifest + "\n[dependencies]\nyacl = true",
+            manifest + "\n[dependencies]\nunknown = true",
             manifest.replace("schema = 1", "schema = ["),
         )
 

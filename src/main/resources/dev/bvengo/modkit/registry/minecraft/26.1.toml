@@ -1,0 +1,16 @@
+[minecraft]
+version = "26.1"
+java = 25
+
+[fabric]
+loader = "0.18.4"
+
+[fabric.dependencies]
+fabric_api = "0.145.1+26.1"
+modmenu = "18.0.0-alpha.8"
+
+[neoforge]
+loader = "26.1.0.19-beta"
+
+[common.dependencies]
+annotations = "26.1.0"

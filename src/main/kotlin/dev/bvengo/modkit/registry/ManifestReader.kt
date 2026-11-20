@@ -7,14 +7,14 @@ import org.tomlj.Toml
 import org.tomlj.TomlInvalidTypeException
 import org.tomlj.TomlTable
 
-/** Parses the bootstrap schema and rejects declarations that are not implemented yet. */
+/** Parses explicit targets and dependency declarations before project creation. */
 object ManifestReader {
     /** Reads a manifest with a source name retained in every validation diagnostic. */
     fun read(text: String, source: String): ModManifest {
         try {
             val document = Toml.parse(text)
             require(!document.hasErrors()) { document.errors().joinToString("\n") }
-            document.checkKeys(setOf("schema", "mod", "targets"), "manifest")
+            document.checkKeys(setOf("schema", "mod", "targets", "dependencies", "overrides"), "manifest")
             require(document.getLong("schema") == 1L) { "schema must be 1" }
 
             val mod = requireNotNull(document.getTable("mod")) { "missing [mod]" }
@@ -36,7 +36,15 @@ object ManifestReader {
             val vcs = selection.requiredString("vcs")
             require(targets.any { it.projectName == vcs }) { "targets.vcs must name a declared target" }
 
-            return ModManifest(id, mod.requiredString("group"), mod.requiredString("version"), targets, vcs)
+            val dependencies = DependencyDeclarations.readDependencies(document.getTable("dependencies"))
+            val overrides = DependencyDeclarations.readOverrides(document.getTable("overrides"), targets, dependencies)
+            val manifest = ModManifest(
+                id, mod.requiredString("group"), mod.requiredString("version"), targets, vcs,
+                dependencies, overrides,
+            )
+            targets.forEach { DependencyRegistry.resolve(manifest, it) }
+
+            return manifest
         } catch (exception: TomlInvalidTypeException) {
             throw GradleException("$source: ${exception.message}", exception)
         } catch (exception: IllegalArgumentException) {

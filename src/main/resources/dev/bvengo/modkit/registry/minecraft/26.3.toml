@@ -5,5 +5,13 @@ java = 25
 [fabric]
 loader = "0.19.5"
 
+[fabric.dependencies]
+fabric_api = "0.160.5+26.3"
+modmenu = "21.0.0-beta.1"
+yacl = "3.9.7+26.3-fabric"
+
 [neoforge]
 loader = "26.3.0.1-beta"
+
+[common.dependencies]
+annotations = "26.1.0"
