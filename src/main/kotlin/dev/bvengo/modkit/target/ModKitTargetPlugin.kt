@@ -28,8 +28,21 @@ class ModKitTargetPlugin : Plugin<Project> {
 
         project.group = manifest.group
         project.version = "${manifest.version}-mc${target.minecraft}"
+
+        val extension = project.extensions.create("modkit", ModKitTargetExtension::class.java)
+        extension.archiveName.convention("${manifest.id}-${target.loader}")
+        extension.licenceEntry.convention(extension.licenceFile.map {
+            "${it.asFile.name}_${manifest.id}-${target.loader}"
+        })
+        extension.metadataProperties.putAll(mapOf(
+            "version" to project.version.toString(),
+            "minecraft_version" to target.minecraft,
+            "loader_version" to pins.loaderVersion,
+            "java_version" to pins.java.toString(),
+        ))
+
         project.extensions.getByType(BasePluginExtension::class.java).archivesName
-            .convention("${manifest.id}-${target.loader}")
+            .convention(extension.archiveName)
         project.repositories.mavenCentral()
 
         val adapter = when (target.loader) {
@@ -38,6 +51,7 @@ class ModKitTargetPlugin : Plugin<Project> {
             else -> error("Unsupported loader ${target.loader}")
         }
         adapter.configure(project, manifest, target, pins)
+        TargetResources.configure(project, extension, target.loader)
 
         project.tasks.withType(JavaCompile::class.java).configureEach {
             options.release.set(pins.java)

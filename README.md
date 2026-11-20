@@ -76,3 +76,24 @@ ModKit is not published yet, so supply the property on each invocation.
 
 JARs are written to `versions/<minecraft>-<loader>/build/libs/`.
 Run `./gradlew build` from ModKit to build and test the plugins.
+
+## Resource and archive options
+
+Optional configuration below the plugins block in `build.gradle.kts` or
+`build.gradle` uses the same syntax for both DSLs.
+
+```kotlin
+modkit {
+    archiveName.set("example")
+    licenceFile.set(rootProject.layout.projectDirectory.file("LICENSE.md"))
+    licenceEntry.set("LICENSE_example")
+    metadataProperties.put("minecraft_range", ">=26.3 <26.4")
+}
+```
+
+Archive names default to `<mod-id>-<loader>`. Licences require an explicit file
+and default to the entry name `<filename>_<mod-id>-<loader>` in both JARs.
+
+Loader descriptors support `${version}`, `${minecraft_version}`,
+`${loader_version}`, `${java_version}` and custom metadata keys. The binary
+excludes the other loader's descriptor. Sources retain both original templates.

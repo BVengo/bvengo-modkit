@@ -2,6 +2,7 @@ package dev.bvengo.modkit
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -98,6 +99,95 @@ internal class BootstrapFunctionalTest {
             val failure = run(":26.3-$loader:compileJava", fails = true)
             assertTrue(failure.output.contains("ClientOnly"), failure.output)
         }
+    }
+
+    @Test
+    fun `resources expand incrementally in both roots and archives retain templates and licence`() {
+        createFixture(kotlin = true, composite = false)
+        Files.writeString(directory.resolve("build.gradle.kts"), """
+            plugins { id("dev.bvengo.modkit.target") }
+            modkit {
+                archiveName.set("custom-fixture")
+                licenceFile.set(rootProject.layout.projectDirectory.file("LICENSE.md"))
+                if (project.name.endsWith("-fabric")) {
+                    licenceEntry.set("LICENSE_fixture")
+                }
+                metadataProperties.put("marker", providers.gradleProperty("fixture.marker"))
+            }
+        """.trimIndent() + "\n")
+        write("LICENSE.md", "Fixture licence")
+        Files.move(
+            directory.resolve("src/main/resources/fabric.mod.json"),
+            directory.resolve("src/client/resources/fabric.mod.json"),
+        )
+        write("src/client/resources/fabric.mod.json", """
+            {"schemaVersion":1,"id":"fixture","version":"${'$'}{version}",
+             "custom":{"marker":"${'$'}{marker}","minecraft":"${'$'}{minecraft_version}",
+             "loader":"${'$'}{loader_version}","java":"${'$'}{java_version}"}}
+        """)
+        write("src/main/resources/META-INF/neoforge.mods.toml", """
+            modLoader = "javafml"
+            loaderVersion = "[4,)"
+            license = "All Rights Reserved"
+            [[mods]]
+            modId = "fixture"
+            version = "${'$'}{version}"
+            displayName = "${'$'}{marker}"
+        """)
+        write("src/client/resources/raw.txt", "${'$'}{leave_this_alone}")
+
+        // Let upstream plugins create their IDE files before checking cache reuse.
+        run("buildAll", "-Pfixture.marker=first")
+        assertResourceArchives("first")
+
+        val arguments = arrayOf("buildAll", "--configuration-cache", "-Pfixture.marker=first")
+        run(*arguments)
+        val unchanged = run(*arguments)
+        assertTrue(unchanged.output.contains("Configuration cache entry reused"), unchanged.output)
+        assertEquals(TaskOutcome.UP_TO_DATE, unchanged.task(":26.3-fabric:processClientResources")?.outcome)
+        assertEquals(TaskOutcome.UP_TO_DATE, unchanged.task(":26.3-neoforge:processResources")?.outcome)
+
+        run("buildAll", "--configuration-cache", "-Pfixture.marker=second")
+        assertResourceArchives("second")
+
+        Files.delete(directory.resolve("LICENSE.md"))
+        val failure = run(":26.3-fabric:jar", "-Pfixture.marker=second", fails = true)
+        assertTrue(failure.output.contains("modkitLicence"), failure.output)
+        assertTrue(failure.output.contains("doesn't exist"), failure.output)
+    }
+
+    private fun assertResourceArchives(marker: String) {
+        listOf("fabric", "neoforge").forEach { loader ->
+            val libs = directory.resolve("versions/26.3-$loader/build/libs")
+            val descriptor = if (loader == "fabric") "fabric.mod.json" else "META-INF/neoforge.mods.toml"
+            val excluded = if (loader == "fabric") "META-INF/neoforge.mods.toml" else "fabric.mod.json"
+            val licenceEntry = if (loader == "fabric") "LICENSE_fixture" else "LICENSE.md_fixture-neoforge"
+
+            ZipFile(libs.resolve("custom-fixture-1.0.0-mc26.3.jar").toFile()).use { archive ->
+                val metadata = archive.getInputStream(archive.getEntry(descriptor)).bufferedReader().use { it.readText() }
+                assertTrue(metadata.contains("1.0.0-mc26.3"), metadata)
+                assertTrue(metadata.contains(marker), metadata)
+                assertFalse(metadata.contains("${'$'}{"), metadata)
+                assertEquals(null, archive.getEntry(excluded))
+                assertEquals("${'$'}{leave_this_alone}\n", archive.readEntry("raw.txt"))
+                assertEquals("Fixture licence\n", archive.readEntry(licenceEntry))
+                if (loader == "fabric") {
+                    assertTrue(metadata.contains("26.3"), metadata)
+                    assertTrue(metadata.contains("0.19.5"), metadata)
+                    assertTrue(metadata.contains("25"), metadata)
+                }
+            }
+
+            val sources = libs.resolve("custom-fixture-1.0.0-mc26.3-sources.jar")
+            assertEntries(sources, listOf("fabric.mod.json", "META-INF/neoforge.mods.toml", licenceEntry))
+            ZipFile(sources.toFile()).use { archive ->
+                assertTrue(archive.readEntry(descriptor).contains("${'$'}{version}"))
+            }
+        }
+    }
+
+    private fun ZipFile.readEntry(name: String): String {
+        return getInputStream(getEntry(name)).bufferedReader().use { it.readText() }
     }
 
     private fun createFixture(kotlin: Boolean, composite: Boolean) {
