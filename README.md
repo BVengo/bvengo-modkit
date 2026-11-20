@@ -17,7 +17,7 @@ pluginManagement {
         require(directory.resolve("settings.gradle.kts").isFile) {
             "Invalid ModKit build directory $directory"
         }
-        includeBuild(directory)
+        includeBuild(directory.absolutePath)
     }
     repositories {
         maven("https://maven.kikugie.dev/releases")

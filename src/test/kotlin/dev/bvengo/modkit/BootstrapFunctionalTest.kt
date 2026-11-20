@@ -27,6 +27,7 @@ internal class BootstrapFunctionalTest {
             ":26.3-neoforge:prepareClientRun", ":26.3-neoforge:createClientLaunchScript",
         )
 
+        assertTrue(result.tasks.any { it.path.endsWith(":compileKotlin") }, result.output)
         assertTrue(result.output.contains("PROBE fabric fabric"), result.output)
         assertTrue(result.output.contains("PROBE neoforge neoforge"), result.output)
         assertTrue(result.output.contains("NeoForge main compilation includes client game classes"))
@@ -57,7 +58,7 @@ internal class BootstrapFunctionalTest {
 
         assertTrue(result.output.contains("PROBE fabric fabric"), result.output)
         assertTrue(result.output.contains("PROBE neoforge neoforge"), result.output)
-        assertFalse(result.output.contains(":modkit:compileKotlin"))
+        assertFalse(result.tasks.any { it.path.endsWith(":compileKotlin") })
         assertArtifacts()
 
         val cachedBuild = arrayOf(

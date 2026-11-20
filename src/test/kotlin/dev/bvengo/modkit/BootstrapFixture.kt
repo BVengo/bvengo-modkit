@@ -10,12 +10,13 @@ internal class BootstrapFixture(private val directory: Path) {
     fun create(kotlin: Boolean, composite: Boolean) {
         val implementation = Path.of(System.getProperty("modkit.projectDirectory")).toUri()
         val repository = Path.of(System.getProperty("modkit.testRepository")).toUri()
-        val bootstrap = if (composite) "includeBuild(file(java.net.URI(\"$implementation\")))" else ""
+        val bootstrap = if (composite) "includeBuild(java.io.File(java.net.URI(\"$implementation\")).absolutePath)" else ""
+        val mavenRepository = if (composite) "" else "maven { url = uri(\"$repository\") }"
         val settings = """
             pluginManagement {
                 $bootstrap
                 repositories {
-                    maven { url = uri("$repository") }
+                    $mavenRepository
                     maven { url = uri("https://maven.kikugie.dev/releases") }
                     maven { url = uri("https://maven.fabricmc.net/") }
                     maven { url = uri("https://maven.neoforged.net/releases/") }
