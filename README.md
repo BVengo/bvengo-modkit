@@ -74,6 +74,12 @@ ModKit is not published yet, so supply the property on each invocation.
 ./gradlew -Pmodkit.includeBuild=../bvengo-modkit buildAll
 ```
 
+NeoForge `check` runs `checkCommonSide` using JDK 25's `jdeps`. Keep references
+to Minecraft client, Blaze3D, Realms client and NeoForge client packages in
+`src/client`. This checks direct compiled class dependencies, including generic
+signatures and dormant bodies. Side-restricted members outside those packages,
+reflection and third-party dependency closures need separate validation.
+
 JARs are written to `versions/<minecraft>-<loader>/build/libs/`.
 Run `./gradlew build` from ModKit to build and test the plugins.
 

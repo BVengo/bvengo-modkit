@@ -24,6 +24,8 @@ dependencies {
     testImplementation(gradleTestKit())
     testImplementation(platform("org.junit:junit-bom:5.12.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("de.thetaphi:forbiddenapis:3.11")
+    testImplementation("com.tngtech.archunit:archunit:1.5.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

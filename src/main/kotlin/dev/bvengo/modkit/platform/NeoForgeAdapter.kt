@@ -3,6 +3,7 @@ package dev.bvengo.modkit.platform
 import dev.bvengo.modkit.model.ModManifest
 import dev.bvengo.modkit.model.Target
 import dev.bvengo.modkit.registry.TargetPins
+import dev.bvengo.modkit.tasks.CheckCommonSide
 import net.neoforged.moddevgradle.dsl.NeoForgeExtension
 import org.gradle.api.Project
 import org.gradle.api.tasks.SourceSetContainer
@@ -49,9 +50,19 @@ internal class NeoForgeAdapter : LoaderAdapter {
             from(client.allSource)
         }
 
+        val checkCommonSide = project.tasks.register("checkCommonSide", CheckCommonSide::class.java) {
+            group = "verification"
+            description = "Rejects known physical-client namespace dependencies in common output."
+            classesDirectories.from(main.output.classesDirs)
+        }
+        project.tasks.named("check") {
+            dependsOn(checkCommonSide)
+        }
+
         project.logger.warn(
             "ModKit ${target.projectName}: NeoForge main compilation includes client game classes. " +
-                "Physical-side validation and runtime smoke remain required before release.",
+                "checkCommonSide checks known client namespaces. Side annotations, dependency closures " +
+                "and runtime behaviour require separate validation.",
         )
     }
 }
