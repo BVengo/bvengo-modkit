@@ -1,0 +1,9 @@
+[minecraft]
+version = "26.3"
+java = 25
+
+[fabric]
+loader = "0.19.5"
+
+[neoforge]
+loader = "26.3.0.1-beta"
