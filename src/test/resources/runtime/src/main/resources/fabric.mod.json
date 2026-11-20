@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "fixture",
+  "version": "${version}",
+  "environment": "*",
+  "entrypoints": {"client": ["fixture.ClientEntrypoint"]},
+  "mixins": [{"config": "fixture.mixins.json", "environment": "client"}],
+  "depends": {"fabricloader": ">=0.19.5", "minecraft": "26.3", "java": ">=25"}
+}

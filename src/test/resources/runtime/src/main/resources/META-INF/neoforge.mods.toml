@@ -1,0 +1,11 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "fixture"
+version = "${version}"
+displayName = "ModKit runtime fixture"
+
+[[mixins]]
+config = "fixture.mixins.json"

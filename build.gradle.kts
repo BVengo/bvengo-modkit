@@ -57,7 +57,7 @@ gradlePlugin {
 
 tasks.test {
     useJUnitPlatform {
-        excludeTags("functional")
+        excludeTags("functional", "runtime")
     }
 }
 
@@ -81,6 +81,25 @@ val functionalTest = tasks.register<Test>("functionalTest") {
 
 tasks.check {
     dependsOn(functionalTest)
+}
+
+tasks.register<Test>("runtimeTest") {
+    description = "Launches real Minecraft clients and a temporary NeoForge server."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform {
+        includeTags("runtime")
+    }
+    systemProperty("modkit.projectDirectory", layout.projectDirectory.asFile.absolutePath)
+    systemProperty("modkit.testRepository", layout.buildDirectory.dir("test-maven").get().asFile.absolutePath)
+    systemProperty("modkit.test.acceptEula", providers.gradleProperty("modkit.test.acceptEula").getOrElse("false"))
+    maxHeapSize = "512m"
+    testLogging {
+        events("passed", "failed", "skipped")
+    }
+    dependsOn("publishAllPublicationsToTestRepository")
+    outputs.upToDateWhen { false }
 }
 
 publishing {

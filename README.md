@@ -77,6 +77,12 @@ ModKit is not published yet, so supply the property on each invocation.
 JARs are written to `versions/<minecraft>-<loader>/build/libs/`.
 Run `./gradlew build` from ModKit to build and test the plugins.
 
+Run `./gradlew runtimeTest -Pmodkit.test.acceptEula=true` from ModKit for game
+launch tests. This accepts the Minecraft EULA for a temporary local test server.
+Clients require a display with OpenGL support. On Linux, `xvfb-run -a` can supply
+a virtual display. Run only client tests with
+`./gradlew runtimeTest --tests '*native clients*'` without accepting the server EULA.
+
 ## Resource and archive options
 
 Optional configuration below the plugins block in `build.gradle.kts` or

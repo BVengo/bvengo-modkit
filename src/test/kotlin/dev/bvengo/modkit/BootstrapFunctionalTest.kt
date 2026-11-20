@@ -1,7 +1,5 @@
 package dev.bvengo.modkit
 
-import org.gradle.testkit.runner.BuildResult
-import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -19,10 +17,12 @@ internal class BootstrapFunctionalTest {
     @TempDir(cleanup = CleanupMode.ON_SUCCESS)
     lateinit var directory: Path
 
+    private val fixture: BootstrapFixture by lazy { BootstrapFixture(directory) }
+
     @Test
     fun `Kotlin composite builds and executes both roots for both loaders`() {
-        createFixture(kotlin = true, composite = true)
-        val result = run(
+        fixture.create(kotlin = true, composite = true)
+        val result = fixture.run(
             "buildAll", ":26.3-fabric:probe", ":26.3-neoforge:probe",
             ":26.3-neoforge:prepareClientRun", ":26.3-neoforge:createClientLaunchScript",
         )
@@ -44,13 +44,13 @@ internal class BootstrapFunctionalTest {
 
     @Test
     fun `Groovy Maven markers build detached sources without composite substitution`() {
-        createFixture(kotlin = false, composite = false)
-        write("stonecutter.gradle", """
+        fixture.create(kotlin = false, composite = false)
+        fixture.write("stonecutter.gradle", """
             plugins { id "dev.bvengo.modkit.controller" }
             stonecutter.active null
         """)
 
-        val result = run(
+        val result = fixture.run(
             "buildAll", ":26.3-fabric:probe", ":26.3-neoforge:probe",
             "--gradle-user-home", directory.resolve("gradle-home").toString(),
         )
@@ -64,31 +64,31 @@ internal class BootstrapFunctionalTest {
             "buildAll", "--configuration-cache",
             "--gradle-user-home", directory.resolve("gradle-home").toString(),
         )
-        run(*cachedBuild)
-        val reused = run(*cachedBuild)
+        fixture.run(*cachedBuild)
+        val reused = fixture.run(*cachedBuild)
         assertTrue(reused.output.contains("Configuration cache entry reused"), reused.output)
     }
 
     @Test
     fun `Fabric rejects client game classes in common while NeoForge exposes its limitation`() {
-        createFixture(kotlin = false, composite = false)
-        write("src/main/java/fixture/Unsafe.java", """
+        fixture.create(kotlin = false, composite = false)
+        fixture.write("src/main/java/fixture/Unsafe.java", """
             package fixture;
             public final class Unsafe {
                 public static net.minecraft.client.Minecraft game() { return null; }
             }
         """)
 
-        val failure = run(":26.3-fabric:compileJava", fails = true)
+        val failure = fixture.run(":26.3-fabric:compileJava", fails = true)
         assertTrue(failure.output.contains("net.minecraft.client"), failure.output)
 
-        run(":26.3-neoforge:compileJava")
+        fixture.run(":26.3-neoforge:compileJava")
     }
 
     @Test
     fun `neither loader permits common code to reference consumer client output`() {
-        createFixture(kotlin = false, composite = false)
-        write("src/main/java/fixture/Unsafe.java", """
+        fixture.create(kotlin = false, composite = false)
+        fixture.write("src/main/java/fixture/Unsafe.java", """
             package fixture;
             public final class Unsafe {
                 public static String value() { return ClientOnly.value(); }
@@ -96,14 +96,14 @@ internal class BootstrapFunctionalTest {
         """)
 
         listOf("fabric", "neoforge").forEach { loader ->
-            val failure = run(":26.3-$loader:compileJava", fails = true)
+            val failure = fixture.run(":26.3-$loader:compileJava", fails = true)
             assertTrue(failure.output.contains("ClientOnly"), failure.output)
         }
     }
 
     @Test
     fun `resources expand incrementally in both roots and archives retain templates and licence`() {
-        createFixture(kotlin = true, composite = false)
+        fixture.create(kotlin = true, composite = false)
         Files.writeString(directory.resolve("build.gradle.kts"), """
             plugins { id("dev.bvengo.modkit.target") }
             modkit {
@@ -115,17 +115,17 @@ internal class BootstrapFunctionalTest {
                 metadataProperties.put("marker", providers.gradleProperty("fixture.marker"))
             }
         """.trimIndent() + "\n")
-        write("LICENSE.md", "Fixture licence")
+        fixture.write("LICENSE.md", "Fixture licence")
         Files.move(
             directory.resolve("src/main/resources/fabric.mod.json"),
             directory.resolve("src/client/resources/fabric.mod.json"),
         )
-        write("src/client/resources/fabric.mod.json", """
+        fixture.write("src/client/resources/fabric.mod.json", """
             {"schemaVersion":1,"id":"fixture","version":"${'$'}{version}",
              "custom":{"marker":"${'$'}{marker}","minecraft":"${'$'}{minecraft_version}",
              "loader":"${'$'}{loader_version}","java":"${'$'}{java_version}"}}
         """)
-        write("src/main/resources/META-INF/neoforge.mods.toml", """
+        fixture.write("src/main/resources/META-INF/neoforge.mods.toml", """
             modLoader = "javafml"
             loaderVersion = "[4,)"
             license = "All Rights Reserved"
@@ -134,24 +134,24 @@ internal class BootstrapFunctionalTest {
             version = "${'$'}{version}"
             displayName = "${'$'}{marker}"
         """)
-        write("src/client/resources/raw.txt", "${'$'}{leave_this_alone}")
+        fixture.write("src/client/resources/raw.txt", "${'$'}{leave_this_alone}")
 
         // Let upstream plugins create their IDE files before checking cache reuse.
-        run("buildAll", "-Pfixture.marker=first")
+        fixture.run("buildAll", "-Pfixture.marker=first")
         assertResourceArchives("first")
 
         val arguments = arrayOf("buildAll", "--configuration-cache", "-Pfixture.marker=first")
-        run(*arguments)
-        val unchanged = run(*arguments)
+        fixture.run(*arguments)
+        val unchanged = fixture.run(*arguments)
         assertTrue(unchanged.output.contains("Configuration cache entry reused"), unchanged.output)
         assertEquals(TaskOutcome.UP_TO_DATE, unchanged.task(":26.3-fabric:processClientResources")?.outcome)
         assertEquals(TaskOutcome.UP_TO_DATE, unchanged.task(":26.3-neoforge:processResources")?.outcome)
 
-        run("buildAll", "--configuration-cache", "-Pfixture.marker=second")
+        fixture.run("buildAll", "--configuration-cache", "-Pfixture.marker=second")
         assertResourceArchives("second")
 
         Files.delete(directory.resolve("LICENSE.md"))
-        val failure = run(":26.3-fabric:jar", "-Pfixture.marker=second", fails = true)
+        val failure = fixture.run(":26.3-fabric:jar", "-Pfixture.marker=second", fails = true)
         assertTrue(failure.output.contains("modkitLicence"), failure.output)
         assertTrue(failure.output.contains("doesn't exist"), failure.output)
     }
@@ -190,98 +190,6 @@ internal class BootstrapFunctionalTest {
         return getInputStream(getEntry(name)).bufferedReader().use { it.readText() }
     }
 
-    private fun createFixture(kotlin: Boolean, composite: Boolean) {
-        val implementation = Path.of(System.getProperty("modkit.projectDirectory")).toUri()
-        val repository = Path.of(System.getProperty("modkit.testRepository")).toUri()
-        val bootstrap = if (composite) "includeBuild(file(java.net.URI(\"$implementation\")))" else ""
-        val settings = """
-            pluginManagement {
-                $bootstrap
-                repositories {
-                    maven { url = uri("$repository") }
-                    maven { url = uri("https://maven.kikugie.dev/releases") }
-                    maven { url = uri("https://maven.fabricmc.net/") }
-                    maven { url = uri("https://maven.neoforged.net/releases/") }
-                    mavenCentral()
-                    gradlePluginPortal()
-                }
-            }
-            plugins { id("dev.bvengo.modkit.settings") version "0.1.0" }
-            rootProject.name = "fixture"
-        """
-        write(if (kotlin) "settings.gradle.kts" else "settings.gradle", settings)
-        write("gradle.properties", """
-            org.gradle.jvmargs=-Xmx1G
-            org.gradle.workers.max=2
-        """)
-        write("mod.toml", """
-            schema = 1
-            [mod]
-            id = "fixture"
-            group = "dev.bvengo.fixture"
-            version = "1.0.0"
-            [targets]
-            minecraft = ["26.3"]
-            loaders = ["fabric", "neoforge"]
-            vcs = "26.3-fabric"
-        """)
-        write(if (kotlin) "stonecutter.gradle.kts" else "stonecutter.gradle", """
-            plugins { id("dev.bvengo.modkit.controller") }
-            stonecutter.active("26.3-fabric")
-        """)
-
-        val probe = if (kotlin) """
-            val sources = extensions.getByType<SourceSetContainer>()
-            tasks.register<JavaExec>("probe") {
-                classpath = sources["client"].runtimeClasspath
-                mainClass.set("fixture.ClientOnly")
-            }
-        """ else """
-            tasks.register("probe", JavaExec) {
-                classpath = sourceSets.client.runtimeClasspath
-                mainClass = "fixture.ClientOnly"
-            }
-        """
-        write(if (kotlin) "build.gradle.kts" else "build.gradle", """
-            plugins { id("dev.bvengo.modkit.target") }
-            $probe
-        """)
-        write("src/main/java/fixture/Common.java", """
-            package fixture;
-            public final class Common {
-                public static String value() {
-                    //? if fabric {
-                    return "fabric";
-                    //?} else {
-                    /*return "neoforge";
-                    *///?}
-                }
-                public static net.minecraft.network.chat.Component component() { return null; }
-            }
-        """)
-        write("src/client/java/fixture/ClientOnly.java", """
-            package fixture;
-            public final class ClientOnly {
-                public static String value() {
-                    //? if fabric {
-                    return "fabric";
-                    //?} else {
-                    /*return "neoforge";
-                    *///?}
-                }
-                public static net.minecraft.client.Minecraft game() { return null; }
-                public static void main(String[] args) {
-                    System.out.println("PROBE " + Common.value() + " " + value());
-                }
-            }
-        """)
-        write("src/main/resources/common.txt", "common resource")
-        write("src/client/resources/client.txt", "client resource")
-        write("src/main/resources/fabric.mod.json", """
-            {"schemaVersion":1,"id":"fixture","version":"1.0.0","environment":"client"}
-        """)
-    }
-
     private fun assertArtifacts() {
         listOf("fabric", "neoforge").forEach { loader ->
             val libs = directory.resolve("versions/26.3-$loader/build/libs")
@@ -297,20 +205,5 @@ internal class BootstrapFunctionalTest {
             val names = archive.entries().asSequence().map { it.name }.toList()
             expected.forEach { name -> assertEquals(1, names.count { it == name }, "$path: $name") }
         }
-    }
-
-    private fun run(vararg tasks: String, fails: Boolean = false): BuildResult {
-        val runner = GradleRunner.create()
-            .withProjectDir(directory.toFile())
-            .withArguments(*tasks, "--stacktrace", "--console=plain", "--max-workers=2")
-            .forwardOutput()
-
-        return if (fails) runner.buildAndFail() else runner.build()
-    }
-
-    private fun write(relative: String, contents: String) {
-        val path = directory.resolve(relative)
-        Files.createDirectories(path.parent)
-        Files.writeString(path, contents.trimIndent() + "\n")
     }
 }
