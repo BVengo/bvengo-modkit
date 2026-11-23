@@ -99,7 +99,7 @@ internal object ManifestOptions {
 
     private fun relativePath(value: String, name: String) {
         val path = Path.of(value)
-        require(value.isNotBlank() && !path.isAbsolute && !path.normalize().startsWith("..") &&
+        require(value.isNotBlank() && path.root == null && !path.normalize().startsWith("..") &&
             '\\' !in value && ':' !in value) { "$name must be a relative path inside the mod" }
     }
 

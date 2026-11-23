@@ -122,6 +122,8 @@ internal class MetadataTest {
             "$base\n$metadata\n[metadata.fabric.custom.bad]\nvalue = 2026-11-23",
             "$base\n[packaging]\nlicence_file = \"../LICENSE\"",
             "$base\n[packaging]\nlicence_file = \"/tmp/LICENSE\"",
+            "$base\n[packaging]\nlicence_file = 'C:/LICENSE'",
+            "$base\n[packaging]\nlicence_file = '//server/share/LICENSE'",
             "$base\n[packaging]\nlicence_entry = \"LICENSE\"",
             "$base\n[publishing]\nmaven = \"yes\"",
             "$base\n[compatibility.\"26.2\"]\nfabric = \"*\"",
