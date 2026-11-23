@@ -41,6 +41,8 @@ internal class MetadataTest {
         fabric-api = "*"
         [metadata.fabric.recommends]
         modmenu = "*"
+        [metadata.neoforge.depends]
+        bvengomodcore = "[0.1.0,0.2.0)"
         [metadata.fabric.custom.menu]
         enabled = true
         values = [1, "text"]
@@ -83,6 +85,11 @@ internal class MetadataTest {
                 assertEquals("[26.3,)", dependencies.getTable(1).getString("versionRange"))
                 assertEquals("CLIENT", dependencies.getTable(0).getString("side"))
                 assertEquals("[4,)", descriptor.getString("loaderVersion"))
+                val sharedLibrary = dependencies.getTable(2)
+                assertEquals("bvengomodcore", sharedLibrary.getString("modId"))
+                assertEquals("[0.1.0,0.2.0)", sharedLibrary.getString("versionRange"))
+                assertEquals("required", sharedLibrary.getString("type"))
+                assertEquals("CLIENT", sharedLibrary.getString("side"))
             }
         }
     }
@@ -119,6 +126,10 @@ internal class MetadataTest {
             "$base\n$metadata".replace("client = [\"ClientMixin\"]", "client = []"),
             "$base\n$metadata".replace("client = [\"ClientMixin\"]", "client = [\"ClientMixin\", \"ClientMixin\"]"),
             "$base\n$metadata\n[metadata.unknown]\nvalue = true",
+            "$base\n$metadata\n[metadata.neoforge.unknown]\nvalue = true",
+            "$base\n$metadata\nmetadata.neoforge.depends = true",
+            "$base\n$metadata".replace("bvengomodcore = \"[0.1.0,0.2.0)\"", "minecraft = \"[26.3,)\""),
+            "$base\n$metadata".replace("bvengomodcore = \"[0.1.0,0.2.0)\"", "bad-id = \"[0.1.0,)\""),
             "$base\n$metadata\n[metadata.fabric.custom.bad]\nvalue = 2026-11-23",
             "$base\n[packaging]\nlicence_file = \"../LICENSE\"",
             "$base\n[packaging]\nlicence_file = \"/tmp/LICENSE\"",

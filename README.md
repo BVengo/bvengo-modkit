@@ -82,6 +82,9 @@ fabric-api = "*"
 [metadata.fabric.recommends]
 modmenu = "*"
 
+[metadata.neoforge.depends]
+bvengomodcore = "[0.1.0,0.2.0)"
+
 [metadata.mixins]
 package = "example.mixin"
 client = ["ExampleMixin"]

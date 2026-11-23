@@ -43,6 +43,9 @@ internal object DependencyRegistry {
             "https://maven.isxander.dev/releases", additionalRepositoryGroups = setOf("org.quiltmc.parsers"),
             excludeFabricApi = true,
         ),
+        "modcore" to DependencyDefinition(
+            "dev.bvengo:bvengomodcore-{loader}", "implementation", setOf("fabric", "neoforge"),
+        ),
     )
 
     fun resolve(manifest: ModManifest, target: Target): List<ResolvedDependency> {
@@ -79,7 +82,8 @@ internal object DependencyRegistry {
             val version = requireNotNull(selected.first)
             requirePinnedVersion(version, selected.second)
 
-            ResolvedDependency(key, version, selected.second, definition)
+            val targetDefinition = definition.copy(module = definition.module.replace("{loader}", target.loader))
+            ResolvedDependency(key, version, selected.second, targetDefinition)
         }
     }
 }

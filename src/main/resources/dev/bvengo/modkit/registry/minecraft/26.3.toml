@@ -17,4 +17,5 @@ fml_range = "[4,)"
 loader = "26.3.0.1-beta"
 
 [common.dependencies]
+modcore = "0.1.0-mc26.3"
 annotations = "26.1.0"

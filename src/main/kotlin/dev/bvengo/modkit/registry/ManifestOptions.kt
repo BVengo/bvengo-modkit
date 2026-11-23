@@ -16,11 +16,20 @@ internal object ManifestOptions {
         }
         table.checkKeys(setOf(
             "name", "description", "licence", "environment", "authors", "contributors", "icon",
-            "contact", "entrypoints", "fabric", "mixins",
+            "contact", "entrypoints", "fabric", "neoforge", "mixins",
         ), "metadata")
 
         val fabric = table.getTable("fabric")
         fabric?.checkKeys(setOf("depends", "recommends", "custom"), "metadata.fabric")
+        val neoForge = table.getTable("neoforge")
+        neoForge?.checkKeys(setOf("depends"), "metadata.neoforge")
+        val neoForgeDepends = neoForge?.getTable("depends").stringMap()
+        require(neoForgeDepends.keys.none { it in setOf("minecraft", "neoforge") }) {
+            "metadata.neoforge.depends cannot replace managed Minecraft or NeoForge dependencies"
+        }
+        require(neoForgeDepends.keys.all { it.matches(Regex("[a-z][a-z0-9_]{1,63}")) }) {
+            "metadata.neoforge.depends keys must be valid mod IDs"
+        }
         val environment = table.requiredText("environment")
         require(environment in setOf("client", "*")) { "metadata.environment must be client or *" }
         val entrypoints = table.getTable("entrypoints")
@@ -44,6 +53,7 @@ internal object ManifestOptions {
             fabricRecommends = fabric?.getTable("recommends").stringMap(),
             fabricCustom = fabric?.getTable("custom")?.let(::objectValues).orEmpty(),
             mixins = mixins(table.getTable("mixins")),
+            neoForgeDepends = neoForgeDepends,
         )
     }
 

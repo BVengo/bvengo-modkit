@@ -18,6 +18,9 @@ internal object TargetDependencies {
         }
 
         resolved.forEach { dependency ->
+            if (dependency.key == "modcore") {
+                configureModCoreRepository(project)
+            }
             val definition = dependency.definition
             definition.repository?.let { repository ->
                 project.repositories.maven {
@@ -39,6 +42,21 @@ internal object TargetDependencies {
                 "ModKit ${target.projectName}: ${dependency.coordinate} on ${definition.configuration} " +
                     "from ${dependency.origin} (requested pin)",
             )
+        }
+    }
+
+    private fun configureModCoreRepository(project: Project) {
+        project.providers.gradleProperty("modcore.artifacts").orNull?.let { path ->
+            project.repositories.flatDir {
+                dirs(project.rootProject.file(path))
+                content { includeGroup("dev.bvengo") }
+            }
+        }
+        project.providers.gradleProperty("modcore.repository").orNull?.let { repository ->
+            project.repositories.maven {
+                url = URI(repository)
+                content { includeGroup("dev.bvengo") }
+            }
         }
     }
 }

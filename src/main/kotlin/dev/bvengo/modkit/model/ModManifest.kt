@@ -31,6 +31,7 @@ data class ModMetadata(
     val fabricRecommends: Map<String, String>,
     val fabricCustom: Map<String, Any>,
     val mixins: MixinMetadata?,
+    val neoForgeDepends: Map<String, String> = emptyMap(),
 )
 
 /** One mod-owned mixin configuration, shared between loader descriptors. */

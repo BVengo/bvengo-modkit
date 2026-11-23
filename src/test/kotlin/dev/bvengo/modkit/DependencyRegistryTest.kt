@@ -34,6 +34,18 @@ internal class DependencyRegistryTest {
     }
 
     @Test
+    fun `ModCore selects a separate loader and game version artifact without embedding`() {
+        val text = baseManifest.replace("[\"26.3\"]", "[\"26.1\", \"26.2\", \"26.3\"]") +
+            "\n[dependencies]\nmodcore = true"
+        val manifest = ManifestReader.read(text, "mod.toml")
+        manifest.targets.forEach { target ->
+            val dependency = DependencyRegistry.resolve(manifest, target).single()
+            assertEquals("dev.bvengo:bvengomodcore-${target.loader}:0.1.0-mc${target.minecraft}", dependency.coordinate)
+            assertEquals("implementation", dependency.definition.configuration)
+        }
+    }
+
+    @Test
     fun `registry defines exact pins and source placement for enabled dependencies`() {
         val manifest = ManifestReader.read(
             baseManifest.replace("[\"fabric\", \"neoforge\"]", "[\"fabric\"]") + """

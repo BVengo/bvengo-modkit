@@ -6,6 +6,11 @@ on:
         description: Exact ModKit source commit matching the caller's workflow pin.
         required: true
         type: string
+      modcore-ref:
+        description: Optional exact ModCore source commit to build as a separate dependency.
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -33,6 +38,14 @@ jobs:
           ref: ${{ inputs.modkit-ref }}
           path: .ci/modkit
           persist-credentials: false
+      - name: Check out pinned ModCore source
+        if: ${{ inputs.modcore-ref != '' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: BVengo/bvengo-modcore
+          ref: ${{ inputs.modcore-ref }}
+          path: .ci/modcore
+          persist-credentials: false
       - name: Set up Java 25
         uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
@@ -43,8 +56,22 @@ jobs:
         with:
           cache-provider: basic
           cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Build separate ModCore dependency
+        if: ${{ inputs.modcore-ref != '' }}
+        run: >-
+          sh .ci/modcore/gradlew -p .ci/modcore --no-daemon --no-parallel
+          --max-workers=2 --console=plain
+          "-Pmodkit.includeBuild=${GITHUB_WORKSPACE}/.ci/modkit" buildAll
       - name: Build every declared target
-        run: sh ./gradlew --no-daemon --no-parallel --max-workers=2 --console=plain -Pmodkit.includeBuild=.ci/modkit buildAll
+        env:
+          MODCORE_REF: ${{ inputs.modcore-ref }}
+        run: |
+          dependency_arguments=()
+          if [ -n "$MODCORE_REF" ]; then
+            dependency_arguments+=(-Pmodcore.artifacts=.ci/modcore/build/libs)
+          fi
+          sh ./gradlew --no-daemon --no-parallel --max-workers=2 --console=plain \
+            -Pmodkit.includeBuild=.ci/modkit "${dependency_arguments[@]}" buildAll
       - name: Retain binary and source JARs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

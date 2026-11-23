@@ -50,6 +50,8 @@ internal class MetadataFunctionalTest {
             modmenu = "*"
             [metadata.fabric.custom]
             marker = "first"
+            [metadata.neoforge.depends]
+            bvengomodcore = "[0.1.0,0.2.0)"
             [metadata.mixins]
             package = "fixture.mixin"
             client = ["ClientMixin"]
@@ -118,6 +120,9 @@ internal class MetadataFunctionalTest {
                         val descriptor = Toml.parse(archive.read("META-INF/neoforge.mods.toml"))
                         assertFalse(descriptor.hasErrors(), descriptor.errors().toString())
                         assertEquals("[26.3]", descriptor.getArray("dependencies.fixture")!!.getTable(1).getString("versionRange"))
+                        val sharedLibrary = descriptor.getArray("dependencies.fixture")!!.getTable(2)
+                        assertEquals("bvengomodcore", sharedLibrary.getString("modId"))
+                        assertEquals("[0.1.0,0.2.0)", sharedLibrary.getString("versionRange"))
                     }
                 }
             }

@@ -91,6 +91,9 @@ internal object MetadataRenderer {
             }
             dependency(manifest.id, "neoforge", "[${values.getValue("loader_version")},)", side)
             dependency(manifest.id, "minecraft", values.getValue("minecraft_range"), side)
+            metadata.neoForgeDepends.forEach { (id, range) ->
+                dependency(manifest.id, id, range, side)
+            }
         }
     }
 
