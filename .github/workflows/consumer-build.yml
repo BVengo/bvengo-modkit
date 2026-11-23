@@ -1,0 +1,54 @@
+name: consumer build
+on:
+  workflow_call:
+    inputs:
+      modkit-ref:
+        description: Exact ModKit source commit matching the caller's workflow pin.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check out pinned ModKit source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: BVengo/bvengo-modkit
+          ref: ${{ inputs.modkit-ref }}
+          path: .ci/modkit
+          persist-credentials: false
+      - name: Set up Java 25
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Set up Gradle and validate wrappers
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Build every declared target
+        run: sh ./gradlew --no-daemon --no-parallel --max-workers=2 --console=plain -Pmodkit.includeBuild=.ci/modkit buildAll
+      - name: Retain binary and source JARs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: jars-${{ runner.os }}
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14
