@@ -31,14 +31,19 @@ class ModKitTargetPlugin : Plugin<Project> {
 
         val extension = project.extensions.create("modkit", ModKitTargetExtension::class.java)
         extension.archiveName.convention("${manifest.id}-${target.loader}")
+        manifest.packaging.licenceFile?.let {
+            extension.licenceFile.convention(project.rootProject.layout.projectDirectory.file(it))
+        }
         extension.licenceEntry.convention(extension.licenceFile.map {
             "${it.asFile.name}_${manifest.id}-${target.loader}"
         })
+        manifest.packaging.licenceEntry?.let { extension.licenceEntry.convention(it) }
         extension.metadataProperties.putAll(mapOf(
             "version" to project.version.toString(),
             "minecraft_version" to target.minecraft,
             "loader_version" to pins.loaderVersion,
             "java_version" to pins.java.toString(),
+            "minecraft_range" to (manifest.compatibility[target.minecraft]?.get(target.loader) ?: pins.minecraftRange),
         ))
 
         project.extensions.getByType(BasePluginExtension::class.java).archivesName
@@ -52,7 +57,11 @@ class ModKitTargetPlugin : Plugin<Project> {
         }
         adapter.configure(project, manifest, target, pins)
         TargetDependencies.configure(project, manifest, target, extension)
-        TargetResources.configure(project, extension, target.loader)
+        TargetMetadata.configure(project, manifest, target, pins, extension)
+        TargetResources.configure(project, extension, target.loader, manifest.metadata != null)
+        if (manifest.mavenPublication) {
+            TargetPublication.configure(project, extension)
+        }
         TargetArtifacts.configure(project)
 
         project.tasks.withType(JavaCompile::class.java).configureEach {

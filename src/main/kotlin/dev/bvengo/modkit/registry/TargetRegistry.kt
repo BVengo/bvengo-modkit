@@ -4,7 +4,13 @@ import dev.bvengo.modkit.model.Target
 import org.tomlj.Toml
 
 /** Exact bootstrap pins shipped inside the implementation artifact. */
-data class TargetPins(val java: Int, val loaderVersion: String, val dependencies: Map<String, String>)
+data class TargetPins(
+    val java: Int,
+    val loaderVersion: String,
+    val dependencies: Map<String, String>,
+    val minecraftRange: String,
+    val fmlRange: String?,
+)
 
 /** Reads only explicitly available targets, without guessing compatible versions. */
 object TargetRegistry {
@@ -29,6 +35,12 @@ object TargetRegistry {
 
         requirePinnedVersion(loader, "$resource ${target.loader}.loader")
 
-        return TargetPins(Math.toIntExact(requireNotNull(registry.getLong("minecraft.java"))), loader, dependencies)
+        val minecraftRange = requireNotNull(registry.getString("${target.loader}.minecraft_range")) {
+            "missing Minecraft compatibility range in $resource for ${target.loader}"
+        }
+        return TargetPins(
+            Math.toIntExact(requireNotNull(registry.getLong("minecraft.java"))), loader, dependencies,
+            minecraftRange, registry.getString("${target.loader}.fml_range"),
+        )
     }
 }

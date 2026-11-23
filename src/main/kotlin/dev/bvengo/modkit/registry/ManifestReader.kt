@@ -14,7 +14,10 @@ object ManifestReader {
         try {
             val document = Toml.parse(text)
             require(!document.hasErrors()) { document.errors().joinToString("\n") }
-            document.checkKeys(setOf("schema", "mod", "targets", "dependencies", "overrides"), "manifest")
+            document.checkKeys(setOf(
+                "schema", "mod", "targets", "dependencies", "overrides",
+                "metadata", "packaging", "publishing", "compatibility",
+            ), "manifest")
             require(document.getLong("schema") == 1L) { "schema must be 1" }
 
             val mod = requireNotNull(document.getTable("mod")) { "missing [mod]" }
@@ -41,6 +44,11 @@ object ManifestReader {
             val manifest = ModManifest(
                 id, mod.requiredString("group"), mod.requiredString("version"), targets, vcs,
                 dependencies, overrides,
+                dependencyLoaders = DependencyDeclarations.readLoaders(document.getTable("dependencies"), targets),
+                metadata = ManifestOptions.metadata(document.getTable("metadata")),
+                packaging = ManifestOptions.packaging(document.getTable("packaging")),
+                mavenPublication = ManifestOptions.publication(document.getTable("publishing")),
+                compatibility = ManifestOptions.compatibility(document.getTable("compatibility"), targets),
             )
             targets.forEach { DependencyRegistry.resolve(manifest, it) }
 
@@ -50,11 +58,6 @@ object ManifestReader {
         } catch (exception: IllegalArgumentException) {
             throw GradleException("$source: ${exception.message}", exception)
         }
-    }
-
-    private fun TomlTable.checkKeys(allowed: Set<String>, path: String) {
-        val unknown = keySet() - allowed
-        require(unknown.isEmpty()) { "$path contains unsupported keys: ${unknown.sorted().joinToString()}" }
     }
 
     private fun TomlTable.requiredString(key: String): String {

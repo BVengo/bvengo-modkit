@@ -1,25 +1,20 @@
 # ModKit
 
 Shared Gradle tooling for BVengo's Minecraft mods. Requires Java 25 and Gradle
-9.6.0. Includes Minecraft 26.1, 26.2 and 26.3 build targets for Fabric and NeoForge.
+9.6.0. Includes Minecraft 26.1, 26.2 and 26.3 targets for Fabric and NeoForge.
 
 ## Setup
 
-Add these files beside your mod's Gradle wrapper. Keep loader descriptors,
-entrypoints, compatibility ranges and exceptional dependencies in the consumer.
+Keep the Gradle wrapper in each mod. ModKit is not published yet, so use an
+explicit composite build or a local Maven installation.
 
 `settings.gradle.kts`
 
 ```kotlin
 pluginManagement {
-    providers.gradleProperty("modkit.includeBuild").orNull?.let { path ->
-        val directory = file(path)
-        require(directory.resolve("settings.gradle.kts").isFile) {
-            "Invalid ModKit build directory $directory"
-        }
-        includeBuild(directory.absolutePath)
-    }
+    providers.gradleProperty("modkit.includeBuild").orNull?.let { includeBuild(it) }
     repositories {
+        providers.gradleProperty("modkit.repository").orNull?.let { maven(it) }
         maven("https://maven.kikugie.dev/releases")
         maven("https://maven.fabricmc.net/")
         maven("https://maven.neoforged.net/releases/")
@@ -27,9 +22,21 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-
 plugins { id("dev.bvengo.modkit.settings") version "0.1.0" }
 rootProject.name = "example"
+```
+
+`build.gradle.kts`
+
+```kotlin
+plugins { id("dev.bvengo.modkit.target") }
+```
+
+`stonecutter.gradle.kts`
+
+```kotlin
+plugins { id("dev.bvengo.modkit.controller") }
+stonecutter.active("26.3-fabric")
 ```
 
 `mod.toml`
@@ -46,107 +53,104 @@ version = "1.0.0"
 minecraft = ["26.3"]
 loaders = ["fabric", "neoforge"]
 vcs = "26.3-fabric"
-```
 
-`stonecutter.gradle.kts`
-
-```kotlin
-plugins { id("dev.bvengo.modkit.controller") }
-stonecutter.active("26.3-fabric")
-```
-
-`build.gradle.kts`
-
-```kotlin
-plugins { id("dev.bvengo.modkit.target") }
-```
-
-Put common code in `src/main/java`, client code in `src/client/java` and resources
-in the corresponding `resources` directories. `active` selects the editing
-target. `vcs` selects the target restored by Stonecutter's reset task.
-
-## Dependencies
-
-Only Minecraft and the selected loader are added automatically. Enable shared
-dependencies in `mod.toml` as needed.
-
-```toml
 [dependencies]
 fabric_api = true
 modmenu = true
-annotations = true
+annotations = { loaders = ["neoforge"] }
 
-[overrides.targets."26.3.fabric".dependencies]
-fabric_api = "0.153.2+26.3"
+[packaging]
+licence_file = "LICENSE.md"
+
+[publishing]
+maven = true
+
+[metadata]
+name = "Example"
+description = "An example mod."
+licence = "All Rights Reserved"
+environment = "client"
+authors = ["Example author"]
+
+[metadata.entrypoints]
+client = ["example.FabricEntrypoint"]
+modmenu = ["example.ModMenuIntegration"]
+
+[metadata.fabric.depends]
+fabric-api = "*"
+
+[metadata.fabric.recommends]
+modmenu = "*"
+
+[metadata.mixins]
+package = "example.mixin"
+client = ["ExampleMixin"]
 ```
 
-Fabric API uses `implementation`. ModMenu uses `clientImplementation`. Both are
-skipped with a diagnostic on NeoForge. Annotations use `compileOnly` on either
-loader. `yacl = true` uses `clientImplementation` and has a registry pin only
-for 26.3 Fabric. Enabling it on NeoForge fails.
+Put common code in src/main/java, client code in src/client/java and assets in
+the corresponding resources directories. Client-only mods may omit common Java.
+`active` selects the editing target. `vcs` selects the reset target.
 
-Version precedence is target override, Minecraft override, global override,
-then the embedded registry. Other override tables are
-`[overrides.minecraft."26.3".dependencies]` and `[overrides.dependencies]`.
-Overrides require enabled dependencies and pinned versions. Gradle still
-resolves transitive version conflicts normally.
+## Metadata and packaging
 
-Shared Minecraft, loader and dependency pins live in the embedded
-[target registry](src/main/resources/dev/bvengo/modkit/registry/minecraft).
-Each mod selects its targets explicitly. Adding a registry entry does not
-automatically add that target to every mod.
+A [metadata] table opts into generated loader descriptors. It requires name,
+description, licence and environment (client or *). Authors/contributors are
+optional string arrays, icon is a relative resource path, contact is a string
+map and entrypoints maps Fabric entrypoint names to class arrays. NeoForge still
+uses native @Mod annotations, including explicit physical-side restrictions.
 
-Enabled dependency pins are available as `${fabric_api_version}`,
-`${modmenu_version}`, `${annotations_version}` and `${yacl_version}` in loader
-descriptors. Keep requiredness, optional integrations and runtime compatibility
-ranges explicit in those descriptors. Adding a build dependency does not
-generate loader dependency metadata.
+ModKit supplies the mod ID/version, Java requirement, loader pin and explicit
+Minecraft range from its registry. Override Minecraft ranges in
+`[compatibility."26.3"]` with fabric and/or neoforge string values. Ranges are
+independent of the list of selected targets. Fabric depends/recommends tables
+hold explicit loader dependency relationships, and metadata.fabric.custom accepts
+nested JSON-compatible TOML values. These do not enable build dependencies.
 
-## Build
+Optional metadata.mixins generates `<mod-id>.mixins.json`. Set package and common
+and/or client class arrays. Defaults are required = true, default_require = 1 and
+the target Java compatibility level. Registering a mixin does not create its class.
+Generated descriptors must not also exist in src/main/resources or
+src/client/resources. Binary and sources JARs contain the selected loader's
+resolved descriptor and generated mixin configuration. Source JARs preserve code
+and assets. Removing a generated mixin declaration removes its generated file.
 
-Run from your mod directory, adjusting the local ModKit path as needed.
-ModKit is not published yet, so supply the property on each invocation.
+Omit metadata to retain hand-authored descriptors. ModKit then expands version,
+minecraft_version, minecraft_range, loader_version, java_version, enabled dependency
+version keys and custom metadataProperties in loader templates only. Sources
+retain their original templates. Binary JARs exclude the other loader's descriptor.
 
-```sh
-./gradlew -Pmodkit.includeBuild=../bvengo-modkit buildAll
-```
+Packaging paths are relative to the mod root. licence_file is explicit and a
+missing configured file fails the build. licence_entry defaults to
+`<filename>_<mod-id>-<loader>` in both JARs. publishing.maven opts into a native
+mavenJava publication with packaged client dependencies, without a destination.
+Existing Gradle archive, resource and publication configuration remains available.
 
-NeoForge `check` runs `checkCommonSide` using JDK 25's `jdeps`. Keep references
-to Minecraft client, Blaze3D, Realms client and NeoForge client packages in
-`src/client`. This checks direct compiled class dependencies, including generic
-signatures and dormant bodies. Side-restricted members outside those packages,
-reflection and third-party dependency closures need separate validation.
+## Dependencies and builds
 
-Root `build` and `buildAll` collect binary and sources JARs into `build/libs/`,
-removing stale collected artifacts. Collected filenames must be unique.
-Individual target builds write to `versions/<minecraft>-<loader>/build/libs/`.
-Run `./gradlew build` from ModKit to build and test the plugins.
+Only Minecraft and the selected loader are implicit. Fabric API uses
+implementation, ModMenu/YACL clientImplementation and annotations compileOnly.
+Boolean opt-ins apply to all applicable targets. A `{ loaders = [...] }` opt-in
+restricts a dependency to explicitly selected, supported loaders. Fabric API and
+ModMenu skip NeoForge with a diagnostic. YACL has a pin only for 26.3 Fabric.
 
-Run `./gradlew runtimeTest -Pmodkit.test.acceptEula=true` from ModKit for game
-launch tests. This accepts the Minecraft EULA for a temporary local test server.
-Clients require a display with OpenGL support. On Linux, `xvfb-run -a` can supply
-a virtual display. Run only client tests with
-`./gradlew runtimeTest --tests '*native clients*'` without accepting the server EULA.
-These launch checks cover development runs on 26.3. Build targets alone do not
-establish runtime compatibility or feature behaviour for a consumer mod.
+Overrides require enabled dependencies and pinned versions. Precedence is target,
+Minecraft, global, then the embedded registry. Gradle resolves transitive conflicts
+normally. Use `[overrides.targets."26.3.fabric".dependencies]`,
+`[overrides.minecraft."26.3".dependencies]` or `[overrides.dependencies]`, with
+keys such as `fabric_api = "0.153.2+26.3"`. Each consumer selects its targets.
 
-## Resource and archive options
+From your mod directory, run `./gradlew -Pmodkit.includeBuild=../bvengo-modkit buildAll`.
+Root build/buildAll collect binary and sources JARs into build/libs and remove stale
+collected files. Target builds write to versions/<target>/build/libs. Filenames
+must be unique. Archive names default to `<mod-id>-<loader>`.
 
-Optional configuration below the plugins block in `build.gradle.kts` or
-`build.gradle` uses the same syntax for both DSLs.
+NeoForge checkCommonSide uses JDK 25 jdeps to reject common compiled references to
+Minecraft client, Blaze3D, Realms client and NeoForge client namespaces. Members
+elsewhere, reflection and third-party closures need separate validation.
 
-```kotlin
-modkit {
-    archiveName.set("example")
-    licenceFile.set(rootProject.layout.projectDirectory.file("LICENSE.md"))
-    licenceEntry.set("LICENSE_example")
-    metadataProperties.put("minecraft_range", ">=26.3 <26.4")
-}
-```
-
-Archive names default to `<mod-id>-<loader>`. Licences require an explicit file
-and default to the entry name `<filename>_<mod-id>-<loader>` in both JARs.
-
-Loader descriptors support `${version}`, `${minecraft_version}`,
-`${loader_version}`, `${java_version}` and custom metadata keys. The binary
-excludes the other loader's descriptor. Sources retain both original templates.
+From ModKit, run `./gradlew build` for unit/functional tests and plugin validation.
+`./gradlew runtimeTest -Pmodkit.test.acceptEula=true` also launches temporary 26.3
+clients and a server, accepting the Minecraft EULA for that server. Clients need
+a display/OpenGL, such as xvfb-run on Linux. To omit the server, use
+`./gradlew runtimeTest --tests '*native clients*'`. These development launch checks
+do not establish every consumer's runtime compatibility or feature behaviour.

@@ -3,6 +3,7 @@ version = "26.1"
 java = 25
 
 [fabric]
+minecraft_range = ">=26.1 <26.2"
 loader = "0.18.4"
 
 [fabric.dependencies]
@@ -10,6 +11,8 @@ fabric_api = "0.145.1+26.1"
 modmenu = "18.0.0-alpha.8"
 
 [neoforge]
+minecraft_range = "[26.1,26.2)"
+fml_range = "[4,)"
 loader = "26.1.0.19-beta"
 
 [common.dependencies]

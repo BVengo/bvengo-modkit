@@ -51,7 +51,11 @@ internal object DependencyRegistry {
         val targetKey = "${target.minecraft}.${target.loader}"
 
         return definitions.mapNotNull { (key, definition) ->
-            if (manifest.dependencies[key] != true) {
+            if (manifest.dependencies[key] != true ||
+                manifest.dependencyLoaders[key]?.contains(target.loader) == false) {
+                require(overrides.targets[targetKey]?.containsKey(key) != true) {
+                    "overrides.targets.$targetKey.dependencies.$key overrides a dependency disabled on ${target.loader}"
+                }
                 return@mapNotNull null
             }
             if (target.loader !in definition.loaders) {

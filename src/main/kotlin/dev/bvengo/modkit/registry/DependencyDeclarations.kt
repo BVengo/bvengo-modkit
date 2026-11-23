@@ -12,7 +12,30 @@ internal object DependencyDeclarations {
         }
         checkKeys(table, DependencyRegistry.definitions.keys, "dependencies")
 
-        return table.keySet().associateWith { key -> table.getBoolean(listOf(key))!! }
+        return table.keySet().associateWith { key ->
+            if (table.get(listOf(key)) is TomlTable) true else table.getBoolean(listOf(key))!!
+        }
+    }
+
+    fun readLoaders(table: TomlTable?, targets: List<Target>): Map<String, Set<String>> {
+        if (table == null) {
+            return emptyMap()
+        }
+        return table.keySet().mapNotNull { key ->
+            val declaration = table.get(listOf(key)) as? TomlTable ?: return@mapNotNull null
+            declaration.checkKeys(setOf("loaders"), "dependencies.$key")
+            val selectedLoaders = declaration.texts("loaders")
+            val loaders = selectedLoaders.toSet()
+            require(loaders.size == selectedLoaders.size) { "dependencies.$key.loaders contains duplicates" }
+            require(loaders.isNotEmpty() && loaders.all { loader -> targets.any { it.loader == loader } }) {
+                "dependencies.$key.loaders must select declared loaders"
+            }
+            val definition = DependencyRegistry.definitions.getValue(key)
+            require(loaders.all { it in definition.loaders }) {
+                "dependencies.$key.loaders selects an unsupported platform"
+            }
+            key to loaders
+        }.toMap()
     }
 
     fun readOverrides(

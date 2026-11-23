@@ -7,7 +7,7 @@ import org.gradle.language.jvm.tasks.ProcessResources
 
 /** Shares resource handling between main and client without expanding arbitrary assets. */
 internal object TargetResources {
-    fun configure(project: Project, extension: ModKitTargetExtension, loader: String) {
+    fun configure(project: Project, extension: ModKitTargetExtension, loader: String, generatedMetadata: Boolean) {
         val properties = extension.metadataProperties
         val excludedDescriptor = when (loader) {
             "fabric" -> "META-INF/neoforge.mods.toml"
@@ -19,7 +19,9 @@ internal object TargetResources {
             inputs.property("modkitMetadata", properties)
             exclude(excludedDescriptor)
             filesMatching(listOf("fabric.mod.json", "META-INF/neoforge.mods.toml")) {
-                expand(properties.get())
+                if (!generatedMetadata) {
+                    expand(properties.get())
+                }
             }
         }
 
